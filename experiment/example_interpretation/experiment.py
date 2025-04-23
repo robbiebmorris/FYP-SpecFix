@@ -92,8 +92,6 @@ def main():
     parser.add_argument("-m", "--model", dest="model", required=True)
     parser.add_argument("-n", "--program_number", dest="number", type=int, default=20)
     parser.add_argument("-woe", "--without_example", dest="without_example", action='store_true')
-    parser.add_argument("-ns", "--nshot", dest="n_shot", default="zero_shot",
-                        help="Number of shots (demonstrations) given to LLM before prompt: one_shot, two_shot, three_shot")
     options = parser.parse_args()
 
     model_name = unify_model_name(options.model)
