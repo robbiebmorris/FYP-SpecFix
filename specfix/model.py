@@ -2,8 +2,6 @@ import configparser
 from os.path import dirname, abspath
 from openai import OpenAI
 import time
-import requests
-import json
 
 config = configparser.ConfigParser()
 config.read(dirname(abspath(__file__)) + '/../../../.config')
