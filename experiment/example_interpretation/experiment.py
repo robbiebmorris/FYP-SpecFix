@@ -37,7 +37,7 @@ def process_problem(i, problem, inputs, outputs, evaluator, n_programs, model_na
     
     repaired_clusters, repaired_passk, repaired_pass_rate, repaired_generated_programs, repaired_failed_inputs_outputs = None, None, None, None, None
     test_inputs = ast.literal_eval(problem['llm_generated_inputs'][model_name])
-    programs = evaluator.parallel_generate_programs(repaired_requirement, entry_point, n_programs)
+    programs = evaluator.parallel_generate_programs(requirement, entry_point, n_programs)
     
     #  get_clusters(self, requirement, programs, test_inputs, entry_point, examples=None):
     original_clusters = evaluator.get_clusters(requirement, programs, test_inputs, entry_point, examples)
