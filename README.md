@@ -56,13 +56,22 @@ We use two datasets in our experiments: Humaneval+ and MBPP+. You can find all n
 After installing the requirements, experiment scripts can be run with the appropriate command-line arguments:
 
 ```bash
-python main.py --dataset <dataset_name> \
+python {experiment_name}.py --dataset <dataset_name> \
                --model <model_name> \
                --program_number <N> \
                --without_example
 ```
 
 Note that if you are using any IDE besides PyCharm, you will encounter issues using the SpecFix Module. To resolve these issues, simply move the specfix folder into the directory of the python script you are trying to run.
+
+There is typically an analysis method which can be used to play around with the results:
+
+```
+python analysis.py
+```
+
+To actually draw interesting conclusions, you may have to toy with the code in analysis.py. Many interesting helper functions are available for analysis in specfix/util.py.
+
 
 ### Command-Line Arguments
 
