@@ -54,7 +54,9 @@ def process_problem(i, problem, inputs, outputs, evaluator, n_programs, model_na
         "task_id": task_id,
         "requirement": requirement,
         "original_passk": original_passk,
-        "original_pass_rate": original_pass_rate,
+        "pass_rate": original_pass_rate,
+        "generated_programs": original_generated_programs,
+        "failed_inputs_outputs": original_failed_inputs_outputs
     }
     return i, writer_dict, "\n".join(log_messages)
     
