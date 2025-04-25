@@ -1,0 +1,124 @@
+import argparse
+import ast
+import sys
+from os.path import dirname, abspath
+import jsonlines
+import concurrent.futures
+import json
+import re
+
+from specfix.evaluator import SpecFixAccuracyEvaluator
+from specfix.utils import (
+    get_evalplus_inputs_outputs,
+    construct_output_file,
+    read_jsonl,
+    unify_model_name
+)
+from specfix.tester import differential_tester, ground_truth_tester
+import configparser
+
+sys.set_int_max_str_digits(0)
+
+
+def parse_problem(problem):
+    requirement = problem['requirement']
+    examples = problem['input_output_examples']
+    entry_point = problem['entry_point']
+    task_id = problem['task_id']
+    return requirement, entry_point, examples, task_id
+
+
+def process_problem(i, problem, inputs, outputs, evaluator, n_programs, model_name):
+    requirement, entry_point, examples, task_id = parse_problem(problem)
+
+    log_messages = []
+    log_messages.append(f"Case {task_id}:\n{requirement}")
+    
+    test_inputs = ast.literal_eval(problem['llm_generated_inputs'][model_name])
+    programs = evaluator.parallel_generate_programs(requirement, entry_point, n_programs)
+    
+    #  get_clusters(self, requirement, programs, test_inputs, entry_point, examples=None):
+    original_clusters = evaluator.get_clusters(requirement, programs, test_inputs, entry_point, examples)
+    evaluator.get_test_consistency(original_clusters)
+    log_messages.append(f"Case {task_id}:\nClusters entropy: {original_clusters.entropy}")
+    
+    original_passk, original_pass_rate, original_generated_programs, original_failed_inputs_outputs = evaluator.pass_k_and_pass_rate(
+        requirement,
+        inputs[i],
+        outputs[i],
+        entry_point,
+        1, 10
+    )
+    
+    writer_dict = {
+        "task_id": task_id,
+        "requirement": requirement,
+        "original_passk": original_passk,
+        "pass_rate": original_pass_rate,
+        "generated_programs": original_generated_programs,
+        "failed_inputs_outputs": original_failed_inputs_outputs
+    }
+    return i, writer_dict, "\n".join(log_messages)
+    
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--model", dest="model", required=True)
+    parser.add_argument("-d", "--dataset", required=True)
+    parser.add_argument("-n", "--program_number", dest="number", type=int, default=20)
+    parser.add_argument("-woe", "--without_example", dest="without_example", action='store_true')
+    options = parser.parse_args()
+
+    model_name = unify_model_name(options.model)
+    dataset = options.dataset
+    wo_example = "_woe" if options.without_example else ""
+    dataset_path = f"../../dataset/{dataset}{wo_example}.jsonl"
+    n_programs = options.number
+    
+    specfix_accuracy_evaluator = SpecFixAccuracyEvaluator(
+        differential_tester=differential_tester,
+        ground_truth_tester=ground_truth_tester,
+        model=model_name,
+        temperature=0,
+    )
+
+
+    inputs, outputs = get_evalplus_inputs_outputs(dataset)
+    
+    output_file = construct_output_file(dirname(abspath(__file__)), model_name, f"{dataset}{wo_example}", f"results")
+    
+    problems = read_jsonl(dataset_path)    
+    tasks = [(i, problem) for i, problem in enumerate(problems)]
+    
+    # Get the llm examples for gpt-4o from our we dataset
+    if wo_example == "_woe" and model_name == "gpt-4o":
+        with open("../../dataset/humaneval.jsonl") as f:
+            we_problems = {
+                entry['task_id']: entry
+                for line in f
+                for entry in [json.loads(line)]
+            }
+
+        for (i, problem) in tasks:
+            wep = we_problems.get(problem['task_id'])
+            problem['llm_generated_inputs']['gpt-4o'] = wep['llm_generated_inputs']['gpt-4o']
+  
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor, \
+            jsonlines.open(output_file, mode='w', flush=True) as writer:
+
+        results = executor.map(
+            lambda args: process_problem(
+                *args, inputs, outputs, specfix_accuracy_evaluator, n_programs, model_name
+            ),
+            tasks
+        )
+
+        for i, writer_dict, log_msg in results:
+            print(log_msg)
+            writer.write(writer_dict)
+
+
+if __name__ == "__main__":
+    main()

@@ -29,7 +29,7 @@ def parse_problem(problem):
     return requirement, repaired_requirement, entry_point, examples, task_id
 
 
-def process_problem(i, problem, inputs, outputs, evaluator, n_programs, model_name, n_shot):
+def process_problem(i, problem, inputs, outputs, evaluator, n_programs, model_name):
     requirement, repaired_requirement, entry_point, examples, task_id = parse_problem(problem)
 
     log_messages = []
@@ -37,7 +37,7 @@ def process_problem(i, problem, inputs, outputs, evaluator, n_programs, model_na
     
     repaired_clusters, repaired_passk, repaired_pass_rate, repaired_generated_programs, repaired_failed_inputs_outputs = None, None, None, None, None
     test_inputs = ast.literal_eval(problem['llm_generated_inputs'][model_name])
-    programs = evaluator.parallel_generate_programs(repaired_requirement, entry_point, n_programs)
+    programs = evaluator.parallel_generate_programs(requirement, entry_point, n_programs)
     
     #  get_clusters(self, requirement, programs, test_inputs, entry_point, examples=None):
     original_clusters = evaluator.get_clusters(requirement, programs, test_inputs, entry_point, examples)
@@ -99,7 +99,6 @@ def main():
     wo_example = "_woe" if options.without_example else ""
     dataset_path = f"../../dataset/humaneval{wo_example}.jsonl"
     n_programs = options.number
-    n_shot = options.n_shot
     
     specfix_accuracy_evaluator = SpecFixAccuracyEvaluator(
         differential_tester=differential_tester,
@@ -161,7 +160,7 @@ def main():
 
         results = executor.map(
             lambda args: process_problem(
-                *args, inputs, outputs, specfix_accuracy_evaluator, n_programs, model_name, n_shot
+                *args, inputs, outputs, specfix_accuracy_evaluator, n_programs, model_name
             ),
             tasks
         )
